@@ -1,0 +1,14 @@
+node_modules/
+*.zip
+*.log
+.DS_Store
+Thumbs.db
+
+# 本地配置 / 缓存（插件运行时写在 $DSH_HOME，不在仓库里）
+config.json
+cache/
+.env
+.env.*
+
+# dsh-pet 安静歌词补丁的备份（在 dsh-pet 目录，不在本仓库）
+*.bak-qqmusic

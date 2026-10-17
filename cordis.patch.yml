@@ -1,0 +1,19 @@
+# ============================================================================
+# dsh-pet-qqmusic —— DSH bundle patch
+# ============================================================================
+# 把「QQ 音乐歌词同步」插件挂进 DSH 配置树。
+#
+# 安装：
+#   dsh plugin --profile web add link:<PLUGIN_DIR>
+#   （desktop profile 由 Electron 应用独占管理，见 README 的手动登记步骤）
+#
+# 与 dsh-pet 的关系：
+#   - 本插件是独立 bundle，不修改 dsh-pet 的源码包；
+#   - web 模式通过自绘气泡或公开的 /dsh-pet-7340/broadcast 端点投喂歌词；
+#   - desktop 悬浮模式可选打一个 quiet 补丁（scripts/），dsh-pet 升级后重跑即可；
+#   - 本插件升级不影响 dsh-pet。
+# ============================================================================
+
+- insert:
+    - id: dsh-pet-qqmusic
+      name: 'dsh-pet-qqmusic'
