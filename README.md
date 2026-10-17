@@ -75,6 +75,8 @@ QQ 音乐 → 主菜单（≡）→ 设置 → 常规设置 → 通知
 
 ## 安装
 
+> 没有 git 环境？可以直接从 [Releases](https://github.com/344272586-sketch/dsh-pet-qqmusic/releases/latest) 下载源码包。
+
 ### 方式 A：DSH 桌面应用（desktop profile）
 
 DSH 桌面版的 profile 由 Electron 应用独占管理，`dsh plugin --profile desktop ...` 会提示 *profile "desktop" is managed exclusively by the Electron application*，所以本地插件需要手动登记：
@@ -337,3 +339,5 @@ QQ 音乐、腾讯及其素材归腾讯音乐娱乐集团所有；dsh-pet 的角
 ## License
 
 [MIT](LICENSE)
+
+变更记录见 [CHANGELOG.md](CHANGELOG.md)。
