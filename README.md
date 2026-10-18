@@ -190,7 +190,7 @@ Invoke-RestMethod http://127.0.0.1:<DSH_PORT>/dsh-pet-qqmusic/config.json -Metho
 ## 工作原理
 
 ```text
-QQ 音乐 PC ──SMTC──> smtc-helper.exe（C# / WinRT）
+QQ 音乐 PC ──SMTC──> smtc-helper.cs（C# / WinRT，首次启动编译）
                           │  title / artist / album / status / position / duration
                           │
 网易云 PC ──cloudmusic.elog──> lib/netease-elog.js（逐字节解码 + 状态机）
@@ -253,10 +253,10 @@ dsh-pet 的 `/broadcast` 在桌面 helper 里最终走 `PetSprite.showWhisper()`
 ### 自检 SMTC
 
 ```powershell
-<PLUGIN_DIR>\lib\smtc-helper.exe --any
+& "$env:USERPROFILE\.dsh\dsh-pet-qqmusic\bin\smtc-helper.exe" --any
 ```
 
-`count > 0` 且 `session` 非空，说明系统 SMTC 正常；再看 `source` 是不是 QQMusic。
+`count > 0` 且 `session` 非空，说明系统 SMTC 正常；再看 `source` 是不是 QQMusic。首次启动会自动从 `lib/smtc-helper.cs` 编译到这个路径。
 
 ---
 
@@ -311,8 +311,8 @@ web 模式默认用自绘气泡，不会出现这个问题。
 **dsh-pet 更新后又不安静了**  
 更新会覆盖 `events.js`，重跑上面的补丁脚本即可。想彻底回到原生行为，把同目录的 `events.js.bak-qqmusic` 还原。
 
-**杀软把 `lib/smtc-helper.exe` 删了 / 拦了**  
-`/health` 会显示 helper 缺失或启动失败。按下面的命令从源码重建，或把 `lib` 目录加白名单。helper 只读系统媒体会话，不发网络请求。
+**杀软把编译出的 SMTC helper 删了 / 拦了**  
+`/health` 会显示 helper 缺失或启动失败。删掉 `$DSH_HOME/dsh-pet-qqmusic/bin/smtc-helper.exe` 后重启插件，会从 `lib/smtc-helper.cs` 自动重新编译；也可以把该目录加白名单。helper 只读系统媒体会话，不发网络请求。
 
 **桌面模式的宠物能看到吗**  
 能。浏览器侧把歌词写进 dsh-pet 的 `pets.<id>.say`，桌面宠物与浏览器宠物读同一份状态。前提是 DSH 页面还开着。
@@ -332,7 +332,7 @@ web 模式默认用自绘气泡，不会出现这个问题。
 - **helper 源码随包**：`lib/smtc-helper.cs` 可自行编译核对
 - **补丁有备份**：`events.js.bak-qqmusic`，随时可还原
 
-详见 [SECURITY.md](SECURITY.md)。
+详见 [SECURITY.md](SECURITY.md) 与 [PERMISSIONS.md](PERMISSIONS.md)（文件 / 网络 / 命令 / 凭据 / 失败边界）。
 
 ---
 
@@ -354,11 +354,11 @@ web 模式默认用自绘气泡，不会出现这个问题。
 # 单测（纯逻辑 + 客户端投喂节奏，不依赖 Windows）
 node --test test/*.test.mjs
 
-# 重建 SMTC helper
+# 手动重建 SMTC helper（插件首次启动会自动编译，通常不需要）
 C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe /nologo /target:exe `
-  /out:lib\smtc-helper.exe `
-  /r:System.Runtime.dll `
-  /r:System.Runtime.WindowsRuntime.dll `
+  /out:"$env:USERPROFILE\.dsh\dsh-pet-qqmusic\bin\smtc-helper.exe" `
+  /r:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.dll `
+  /r:C:\Windows\Microsoft.NET\Framework64\v4.0.30319\System.Runtime.WindowsRuntime.dll `
   /r:C:\Windows\System32\WinMetadata\Windows.Foundation.winmd `
   /r:C:\Windows\System32\WinMetadata\Windows.Media.winmd `
   /r:C:\Windows\System32\WinMetadata\Windows.Storage.winmd `
@@ -375,12 +375,13 @@ dsh-pet-qqmusic/
 │  ├─ index.js          # 宿主：双播放器选择 / 路由 / 状态机 / 配置 / 缓存
 │  ├─ lyrics.js         # LRC 解析 / 版本打分 / QQ + 网易云搜索与取词
 │  ├─ netease-elog.js   # 网易云 cloudmusic.elog 解码 + 播放状态机
-│  ├─ smtc.js           # Node 侧：看护 helper、解析 JSON、进度外推
-│  ├─ smtc-helper.cs    # C# 源码
-│  └─ smtc-helper.exe   # 已编译的 x64 helper
+│  ├─ smtc.js           # Node 侧：按需编译 / 看护 helper、解析 JSON、进度外推
+│  ├─ smtc-helper.cs    # C# 源码（首次启动编译到 $DSH_HOME/dsh-pet-qqmusic/bin）
+│  └─ (bin/smtc-helper.exe 运行时生成，不随包分发)
 ├─ scripts/
 │  └─ patch-dsh-pet-quiet-lyrics.mjs
 ├─ assets/banner.svg
+├─ PERMISSIONS.md        # 文件 / 网络 / 命令 / 凭据 / 失败边界
 └─ test/                # node:test
 ```
 

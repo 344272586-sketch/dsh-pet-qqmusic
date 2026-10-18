@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.3.3
+
+- 不再随包分发 `lib/smtc-helper.exe`：首次启动用 Windows 自带 `csc.exe` 从
+  `lib/smtc-helper.cs` 编译到 `$DSH_HOME/dsh-pet-qqmusic/bin/`，修复 DSH STORE
+  “unsupported artifacts / fixed-source scan incomplete”
+- 去掉 `process.env.LOCALAPPDATA` / `DSH_PROFILE_DIR` 读取，固定源码扫描不再命中
+  credentials 信号；补丁脚本改收 `--profile-dir=`
+- 新增 `PERMISSIONS.md`：文件 / 网络 / 命令 / 凭据 / 外部服务 / 失败边界
+- 说明：文件、网络、命令能力是功能本身；DSH STORE 仍可能需要人工复核，
+  不会被声明自动批准
+
 ## 1.3.2
 
 - 修复 QQ 音乐和网易云同时开着时，网易云的 SMTC 会话（常常没有进度）抢走 QQ 会话，导致 QQ 歌词不显示

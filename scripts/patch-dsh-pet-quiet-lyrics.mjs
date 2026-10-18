@@ -42,8 +42,9 @@ const BRANCH = `
   }`;
 
 const home = process.env.DSH_HOME || path.join(os.homedir(), '.dsh');
+const profileArg = process.argv.find((arg) => arg.startsWith('--profile-dir='));
 const profileDirs = [
-  process.env.DSH_PROFILE_DIR,
+  profileArg ? profileArg.slice('--profile-dir='.length) : '',
   path.join(home, 'profiles', 'desktop'),
   path.join(home, 'profiles', 'web'),
 ].filter(Boolean);

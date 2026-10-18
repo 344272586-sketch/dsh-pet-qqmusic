@@ -20,10 +20,11 @@
 `native播放资源load完成` 这几类事件，并把结果限制在歌名、歌手、专辑、时长、songId、进度和播放状态。
 `musicurl` 不会进入状态、不会落盘、不会上传。
 
-## 二进制文件
+## SMTC helper（从源码编译）
 
-`lib/smtc-helper.exe` 是 `lib/smtc-helper.cs` 用 Windows 自带 `csc` 编译的 x64 helper，
-只调用 `Windows.Media.Control` 读取媒体会话，不发任何网络请求。源码在同一目录，可自行重建。
+仓库不再携带预编译的 `smtc-helper.exe`。`lib/smtc-helper.cs` 由 Windows 自带的
+`csc.exe` 在首次启动时编译到 `$DSH_HOME/dsh-pet-qqmusic/bin/`，只调用
+`Windows.Media.Control` 读取媒体会话，不发任何网络请求。源码随包，可自行核对或重建。
 
 ## 桌面 quiet 补丁
 
