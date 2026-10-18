@@ -402,6 +402,38 @@ test('player=netease 时 elog 不可用可回退到网易云 SMTC', async () => 
   rmSync(home, { recursive: true, force: true });
 });
 
+test('neteaseOffsetMs 只覆盖网易云，QQ 仍用 offsetMs', async () => {
+  const neSession = {
+    available: true,
+    session: {
+      source: 'cloudmusic.exe',
+      player: 'netease',
+      title: '起风了',
+      artist: '买辣椒也用券',
+      album: '起风了',
+      status: 'Playing',
+      playing: true,
+      positionMs: 4000,
+      durationMs: 325868,
+      lastUpdatedMs: Date.now(),
+      songId: '1330348068',
+      positionSource: 'elog',
+    },
+  };
+  const { service, home } = makeService({
+    config: { offsetMs: 0, neteaseOffsetMs: 5000 },
+    watcher: { getState: () => ({ available: false, session: null, reason: 'no-session' }) },
+    netease: { getState: () => neSession },
+  });
+  service._tick();
+  await settle();
+  const s = service.state();
+  assert.equal(s.player, 'netease');
+  assert.equal(s.offsetMs, 5000);
+  assert.equal(s.line.text, '第二行');
+  rmSync(home, { recursive: true, force: true });
+});
+
 test('watcher 抛异常时 fail closed，不投喂脏状态', () => {
   const { service, home } = makeService({
     watcher: {

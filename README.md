@@ -162,6 +162,7 @@ dsh plugin --profile web add link:<PLUGIN_DIR>
 | `neteasePath` | `""` | 自定义 `cloudmusic.elog` 路径；空 = `%USERPROFILE%\AppData\Local\NetEase\CloudMusic\cloudmusic.elog`（改完需重启插件） |
 | `displayMode` | `"auto"` | `auto`：web 桌宠用自绘气泡、桌面悬浮回落到投喂；`overlay`：只用自绘气泡（不触发动画，桌面模式不显示）；`bubble`：始终走 `dsh-pet /broadcast` |
 | `offsetMs` | `600` | 歌词提前量（毫秒），范围 −5000 ~ 5000；正数 = 歌词更早出现。默认 600 是补偿 dsh-pet 气泡约 1 秒的轮询 |
+| `neteaseOffsetMs` | `null` | 网易云单独提前量；`null` = 跟随 `offsetMs`。QQ 和网易云延迟不同时用（范围同样 −5000 ~ 5000） |
 | `keepAliveSec` | `8` | 同一行超过 N 秒补发一次，防止气泡 10 秒自动收起；`0` = 不补发 |
 | `showTrackInfo` | `true` | 切歌时先显示「歌名 - 歌手」 |
 | `showTranslation` | `false` | 有翻译时显示两行（原文 + 译文） |

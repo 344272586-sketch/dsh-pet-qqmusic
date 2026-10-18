@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.6
+
+- 新增 `neteaseOffsetMs`：网易云可以单独设提前量，`null` 时跟随 `offsetMs`；客户端排程使用当前播放器的有效 offset
+- 新增 Windows CI job：跑单测、用系统 `csc.exe` 编译 SMTC helper，并执行 `--any` 探针验证 JSON
+- 单测补到 37 项
+
 ## 1.3.5
 
 - 客户端切歌 key 纳入 `player` / `songId`，网易云只有 id 时不会把上一首的排程/待定行带到下一首
