@@ -275,8 +275,16 @@ dsh-pet 的 `/broadcast` 在桌面 helper 里最终走 `PetSprite.showWhisper()`
 **网易云进度准吗 / 拖拽进度条会跳吗**  
 会。插件解析的是 `cloudmusic.elog` 里的 `setPlayingPosition` 事件，拖拽 seek 后会立即更新位置，不是按启动时间硬估。
 
+**QQ 音乐明明在播，有时不显示歌词**  
+按顺序看 `state.json`：
+
+1. `player` 是不是变成了 `netease`：网易云也开着时，旧版 SMTC helper 可能拿到网易云那个没有进度的会话。1.3.2 起会按「正在播放 > 有时间轴 > 最近更新」给会话打分，QQ 在播时优先 QQ；仍想强制就设 `player: "qq"`。
+2. `playing` 是不是 `false`：QQ 音乐暂停 / 刚启动 / 还没真正出声时，SMTC 可能是 `Opened` 或 `Paused`，按一下播放键变成 `Playing` 才会有歌词。
+3. `line` 是不是 `null` 而 `lyrics.status` 是 `ready`：通常只是还没到第一句（前奏、制作名单），气泡会显示歌名（`showTrackInfo` 默认开）。
+4. `lyrics.status` 是 `error` 就看 `lyrics.error`；`hint.code` 是 `smtc-off` 就去开 QQ 音乐的 SMTC。
+
 **QQ 音乐和网易云同时开着，投谁**  
-默认 `player: "auto"` 选正在播放的那个；两个都在播时选最近有更新的。也可以强制：
+默认 `player: "auto"` 选正在播放的那个；两个都在播时优先时间轴有效、最近更新的，平手偏 QQ。也可以强制：
 
 ```json
 { "player": "netease" }

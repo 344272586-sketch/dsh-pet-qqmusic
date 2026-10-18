@@ -21,11 +21,14 @@
 //     "durationMs":229000,"lastUpdatedMs":...},"count":1}
 //
 // 约定：
-// - 只认 SourceAppUserModelId 含 "QQMusic" 的会话（大小写不敏感），不抢其它播放器。
+// - 认 SourceAppUserModelId 含 "QQMusic" / "cloudmusic" / "netease" 的会话（大小写不敏感）。
+// - 多个会话时优先「正在播放 + 有时间轴」的那个；网易云旧版 SMTC 常常
+//   position/duration 全 0、LastUpdatedTime 是 1601 年，不能盖过正在播放的 QQ 音乐。
 // - position 是采样值；宿主按 (now - lastUpdatedMs) 外推，这里只给原始快照。
-// - 没有会话时 session=null，宿主据此提示「QQ 音乐没开 SMTC / 没在播放」。
+// - 没有会话时 session=null，宿主据此提示「没开 SMTC / 没在播放」。
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Threading;
@@ -79,6 +82,87 @@ internal static class Program
         return t.ToUnixTimeMilliseconds();
     }
 
+    private sealed class Candidate
+    {
+        public GlobalSystemMediaTransportControlsSession Session;
+        public string Source = "";
+        public string Status = "Unknown";
+        public bool Playing;
+        public double Pos;
+        public double Duration;
+        public double Rate = 1;
+        public DateTimeOffset LastUpdated;
+        public int Score;
+    }
+
+    private static bool IsQQ(string source)
+    {
+        return (source ?? "").IndexOf("QQMusic", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static bool IsNetease(string source)
+    {
+        string s = source ?? "";
+        return s.IndexOf("cloudmusic", StringComparison.OrdinalIgnoreCase) >= 0
+            || s.IndexOf("netease", StringComparison.OrdinalIgnoreCase) >= 0
+            || s.IndexOf("com.netease", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static bool SameSource(GlobalSystemMediaTransportControlsSession a, GlobalSystemMediaTransportControlsSession b)
+    {
+        try
+        {
+            return string.Equals(a.SourceAppUserModelId ?? "", b.SourceAppUserModelId ?? "", StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
+    }
+
+    // 给每个会话打分：正在播放 > 有时间轴 > 最近更新 > 系统当前会话 > QQ 兜底。
+    // 网易云 3.x 的旧 SMTC 会话经常是 Playing 但 position/duration=0、
+    // LastUpdatedTime=1601，不能让它抢走正在播放的 QQ 音乐。
+    private static Candidate Evaluate(GlobalSystemMediaTransportControlsSession s, GlobalSystemMediaTransportControlsSession current)
+    {
+        Candidate c = new Candidate();
+        c.Session = s;
+        c.Source = s.SourceAppUserModelId ?? "";
+        try
+        {
+            var info = s.GetPlaybackInfo();
+            c.Playing = info.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
+            c.Status = info.PlaybackStatus.ToString();
+            try { c.Rate = Convert.ToDouble(info.PlaybackRate, CultureInfo.InvariantCulture); }
+            catch { c.Rate = 1; }
+        }
+        catch
+        {
+            c.Playing = false;
+        }
+        try
+        {
+            var timeline = s.GetTimelineProperties();
+            c.Pos = timeline.Position.TotalMilliseconds;
+            double start = timeline.StartTime.TotalMilliseconds;
+            double end = timeline.EndTime.TotalMilliseconds;
+            c.Duration = end > start ? end - start : 0;
+            if (c.Duration <= 0 && end > 0) c.Duration = end;
+            c.LastUpdated = timeline.LastUpdatedTime;
+        }
+        catch { }
+        if (double.IsNaN(c.Pos) || double.IsInfinity(c.Pos) || c.Pos < 0) c.Pos = 0;
+        if (double.IsNaN(c.Duration) || double.IsInfinity(c.Duration) || c.Duration < 0) c.Duration = 0;
+        if (double.IsNaN(c.Rate) || double.IsInfinity(c.Rate)) c.Rate = 1;
+
+        int score = 0;
+        if (c.Playing) score += 200;
+        if (c.Duration > 0) score += 50;
+        if (c.LastUpdated.Year >= 2000) score += 40;
+        if (c.Pos > 0) score += 10;
+        if (current != null && SameSource(s, current)) score += 30;
+        if (IsQQ(c.Source)) score += 10;
+        c.Score = score;
+        return c;
+    }
+
     private static string BuildSnapshot(GlobalSystemMediaTransportControlsSessionManager mgr)
     {
         var sessions = mgr.GetSessions();
@@ -87,62 +171,47 @@ internal static class Program
         sb.Append(",\"intervalMs\":").Append(intervalMs);
         sb.Append(",\"count\":").Append(sessions.Count);
         sb.Append(",\"session\":");
-        GlobalSystemMediaTransportControlsSession picked = null;
+
+        GlobalSystemMediaTransportControlsSession current = null;
+        try { current = mgr.GetCurrentSession(); } catch { }
+
+        List<Candidate> candidates = new List<Candidate>();
         foreach (var s in sessions)
         {
             try
             {
                 string src = s.SourceAppUserModelId ?? "";
-                bool isQQ = src.IndexOf("QQMusic", StringComparison.OrdinalIgnoreCase) >= 0;
-                bool isNetease = src.IndexOf("cloudmusic", StringComparison.OrdinalIgnoreCase) >= 0
-                    || src.IndexOf("netease", StringComparison.OrdinalIgnoreCase) >= 0
-                    || src.IndexOf("com.netease", StringComparison.OrdinalIgnoreCase) >= 0;
-                if (isQQ || isNetease)
-                {
-                    picked = s;
-                    break;
-                }
-                // 调试模式：没有目标播放器时也读一个会话（--any），只用于自检
-                if (allowAny && picked == null) picked = s;
+                if (!allowAny && !IsQQ(src) && !IsNetease(src)) continue;
+                candidates.Add(Evaluate(s, current));
             }
             catch { }
+        }
+
+        Candidate picked = null;
+        foreach (var c in candidates)
+        {
+            if (picked == null || c.Score > picked.Score) picked = c;
         }
         if (picked == null)
         {
             sb.Append("null}");
             return sb.ToString();
         }
+
         try
         {
-            var props = Wait(picked.TryGetMediaPropertiesAsync());
-            var timeline = picked.GetTimelineProperties();
-            var info = picked.GetPlaybackInfo();
-            double pos = timeline.Position.TotalMilliseconds;
-            double start = timeline.StartTime.TotalMilliseconds;
-            double end = timeline.EndTime.TotalMilliseconds;
-            double duration = end > start ? end - start : 0;
-            if (duration <= 0 && end > 0) duration = end;
-            // QQ 音乐在部分版本会给出 NaN / 空 PlaybackRate；直接拼进 JSON 会得到
-            // "playbackRate":}（非法 JSON），宿主就永远读不到会话。这里统一兜底。
-            if (double.IsNaN(pos) || double.IsInfinity(pos) || pos < 0) pos = 0;
-            if (double.IsNaN(duration) || double.IsInfinity(duration) || duration < 0) duration = 0;
-            double rate = 1;
-            try { rate = Convert.ToDouble(info.PlaybackRate, CultureInfo.InvariantCulture); }
-            catch { rate = 1; }
-            if (double.IsNaN(rate) || double.IsInfinity(rate)) rate = 1;
-            bool playing = info.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
-            sb.Append("{\"source\":\"").Append(Esc(picked.SourceAppUserModelId));
-            bool pickedQQ = (picked.SourceAppUserModelId ?? "").IndexOf("QQMusic", StringComparison.OrdinalIgnoreCase) >= 0;
-            sb.Append("\",\"player\":\"").Append(pickedQQ ? "qq" : "netease").Append("\"");
+            var props = Wait(picked.Session.TryGetMediaPropertiesAsync());
+            sb.Append("{\"source\":\"").Append(Esc(picked.Source));
+            sb.Append("\",\"player\":\"").Append(IsQQ(picked.Source) ? "qq" : "netease").Append("\"");
             sb.Append(",\"title\":\"").Append(Esc(props.Title));
             sb.Append("\",\"artist\":\"").Append(Esc(props.Artist));
             sb.Append("\",\"album\":\"").Append(Esc(props.AlbumTitle));
-            sb.Append("\",\"status\":\"").Append(info.PlaybackStatus.ToString());
-            sb.Append("\",\"playing\":").Append(playing ? "true" : "false");
-            sb.Append(",\"positionMs\":").Append(Math.Round(pos));
-            sb.Append(",\"durationMs\":").Append(Math.Round(duration));
-            sb.Append(",\"lastUpdatedMs\":").Append(UnixMs(timeline.LastUpdatedTime));
-            sb.Append(",\"playbackRate\":").Append(rate.ToString("0.###", CultureInfo.InvariantCulture));
+            sb.Append("\",\"status\":\"").Append(picked.Status);
+            sb.Append("\",\"playing\":").Append(picked.Playing ? "true" : "false");
+            sb.Append(",\"positionMs\":").Append(Math.Round(picked.Pos));
+            sb.Append(",\"durationMs\":").Append(Math.Round(picked.Duration));
+            sb.Append(",\"lastUpdatedMs\":").Append(UnixMs(picked.LastUpdated));
+            sb.Append(",\"playbackRate\":").Append(picked.Rate.ToString("0.###", CultureInfo.InvariantCulture));
             sb.Append("}}");
         }
         catch (Exception e)

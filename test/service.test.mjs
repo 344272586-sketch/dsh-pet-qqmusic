@@ -313,3 +313,137 @@ test('网易云 elog 会话：player / positionSource / songId 与按 id 取词'
   assert.equal(s.line.text, '第三行');
   rmSync(home, { recursive: true, force: true });
 });
+
+test('SMTC 返回网易云会话时按 player 保留，不因 QQ 未启动而丢弃', async () => {
+  const { service, home } = makeService({
+    watcher: {
+      getState: () => ({
+        available: true,
+        session: {
+          source: 'cloudmusic.exe',
+          player: 'netease',
+          title: '岁月神偷',
+          artist: '金玟岐',
+          album: '',
+          status: 'Paused',
+          playing: false,
+          positionMs: 0,
+          durationMs: 0,
+          lastUpdatedMs: -11644473600000,
+        },
+      }),
+    },
+    netease: { getState: () => ({ available: false, session: null, reason: 'no-session' }) },
+  });
+  service.qqmusicRunning = false;
+  service.cloudmusicRunning = true;
+  service._tick();
+  const s = service.state();
+  assert.equal(s.player, 'netease');
+  assert.equal(s.available, true);
+  assert.equal(s.positionSource, 'smtc');
+  rmSync(home, { recursive: true, force: true });
+});
+
+test('player=qq 时不会被网易云 SMTC 会话顶替', async () => {
+  const { service, home } = makeService({
+    config: { player: 'qq' },
+    watcher: {
+      getState: () => ({
+        available: true,
+        session: {
+          source: 'cloudmusic.exe',
+          player: 'netease',
+          title: '熄灭',
+          artist: 'TC',
+          playing: true,
+          positionMs: 1000,
+          durationMs: 148611,
+          lastUpdatedMs: Date.now(),
+        },
+      }),
+    },
+    netease: { getState: () => ({ available: false, session: null, reason: 'no-session' }) },
+  });
+  service.qqmusicRunning = false;
+  service.cloudmusicRunning = true;
+  service._tick();
+  assert.equal(service.state().available, false);
+  rmSync(home, { recursive: true, force: true });
+});
+
+test('player=netease 时 elog 不可用可回退到网易云 SMTC', async () => {
+  const { service, home } = makeService({
+    config: { player: 'netease' },
+    watcher: {
+      getState: () => ({
+        available: true,
+        session: {
+          source: 'cloudmusic.exe',
+          player: 'netease',
+          title: '岁月神偷',
+          artist: '金玟岐',
+          playing: true,
+          positionMs: 30000,
+          durationMs: 200000,
+          lastUpdatedMs: Date.now(),
+        },
+      }),
+    },
+    netease: { getState: () => ({ available: false, session: null, reason: 'no-session' }) },
+  });
+  service.qqmusicRunning = false;
+  service.cloudmusicRunning = true;
+  service._tick();
+  const s = service.state();
+  assert.equal(s.player, 'netease');
+  assert.equal(s.positionSource, 'smtc');
+  assert.equal(s.available, true);
+  rmSync(home, { recursive: true, force: true });
+});
+
+test('网易云 elog 与 SMTC 同时可用时优先 elog', async () => {
+  const { service, home } = makeService({
+    watcher: {
+      getState: () => ({
+        available: true,
+        session: {
+          source: 'cloudmusic.exe',
+          player: 'netease',
+          title: '熄灭',
+          artist: 'TC',
+          playing: true,
+          positionMs: 0,
+          durationMs: 0,
+          lastUpdatedMs: -11644473600000,
+        },
+      }),
+    },
+    netease: {
+      getState: () => ({
+        available: true,
+        session: {
+          source: 'cloudmusic.exe',
+          player: 'netease',
+          title: '熄灭',
+          artist: 'TC',
+          album: '熄灭',
+          status: 'Playing',
+          playing: true,
+          positionMs: 50000,
+          durationMs: 148611,
+          lastUpdatedMs: Date.now(),
+          songId: '2040015902',
+          positionSource: 'elog',
+        },
+      }),
+    },
+  });
+  service.qqmusicRunning = false;
+  service.cloudmusicRunning = true;
+  service._tick();
+  const s = service.state();
+  assert.equal(s.positionSource, 'elog');
+  assert.ok(s.positionMs >= 50000 && s.positionMs < 51000, 'elog 原值应保留，实际 ' + s.positionMs);
+  rmSync(home, { recursive: true, force: true });
+});
