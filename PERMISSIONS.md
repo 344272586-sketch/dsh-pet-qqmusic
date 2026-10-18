@@ -34,6 +34,8 @@ DSH STORE 的固定源码扫描会标记本插件的文件 / 网络 / 命令能�
 - `https://c.y.qq.com/`、`https://u.y.qq.com/`：QQ 音乐搜索 / 歌词
 - `https://music.163.com/`：网易云搜索 / songId 歌词 / 曲目详情
 - `https://lrclib.net/`：QQ/网易云都取不到时的可选兜底
+- 本机 `http://127.0.0.1:<DSH_PORT>/dsh-pet-7340/broadcast`：前台被后台节流时，
+  宿主直接写 dsh-pet 的歌词气泡（仅 loopback，不经过外部网络）
 
 没有遥测、上报、Webhook 或动态服务器地址。
 

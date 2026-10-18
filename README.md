@@ -164,6 +164,7 @@ dsh plugin --profile web add link:<PLUGIN_DIR>
 | `offsetMs` | `600` | 歌词提前量（毫秒），范围 −5000 ~ 5000；正数 = 歌词更早出现。默认 600 是补偿 dsh-pet 气泡约 1 秒的轮询 |
 | `neteaseOffsetMs` | `null` | 网易云单独提前量；`null` = 跟随 `offsetMs`。QQ 和网易云延迟不同时用（范围同样 −5000 ~ 5000） |
 | `keepAliveSec` | `8` | 同一行超过 N 秒补发一次，防止气泡 10 秒自动收起；`0` = 不补发 |
+| `hostFallback` | `true` | DSH 前台被最小化/后台节流时，宿主直接写 dsh-pet，桌面歌词不依赖浏览器轮询；`overlay` 模式不启用 |
 | `showTrackInfo` | `true` | 切歌时先显示「歌名 - 歌手」 |
 | `showTranslation` | `false` | 有翻译时显示两行（原文 + 译文） |
 | `prefix` | `"♪ "` | 气泡前缀，最多 8 字符 |
@@ -276,6 +277,9 @@ dsh-pet 的 `/broadcast` 在桌面 helper 里最终走 `PetSprite.showWhisper()`
 
 **网易云进度准吗 / 拖拽进度条会跳吗**  
 会。插件解析的是 `cloudmusic.elog` 里的 `setPlayingPosition` 事件，拖拽 seek 后会立即更新位置，不是按启动时间硬估。
+
+**DSH 切到后台 / 最小化后歌词消失**  
+Chromium 会节流后台页面的 `setInterval`，浏览器侧不再轮询，dsh-pet 气泡 10 秒后自然收起。1.3.9 起宿主检测到 client 超过 2.5 秒没来取状态时，会直接写 dsh-pet（`hostFallback: true`，默认开），桌面宠物不再依赖 DSH 前台。`displayMode: "overlay"` 是网页自绘气泡，后台时无法兜底。
 
 **QQ 音乐明明在播，有时不显示歌词**  
 按顺序看 `state.json`：

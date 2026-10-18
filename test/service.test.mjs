@@ -57,6 +57,7 @@ function makeService(overrides = {}) {
       home,
       watcher,
       netease,
+      hostDeliver: overrides.hostDeliver,
       resolver: overrides.resolver ?? resolver,
       detailLookup: overrides.detailLookup,
       config: { enabled: true, offsetMs: 0, hints: true, ...(overrides.config ?? {}) },
@@ -431,6 +432,40 @@ test('neteaseOffsetMs 只覆盖网易云，QQ 仍用 offsetMs', async () => {
   assert.equal(s.player, 'netease');
   assert.equal(s.offsetMs, 5000);
   assert.equal(s.line.text, '第二行');
+  rmSync(home, { recursive: true, force: true });
+});
+
+test('client 失联时宿主兜底写 dsh-pet', () => {
+  const calls = [];
+  const { service, home } = makeService({
+    hostDeliver: (url, text) => {
+      calls.push({ url, text });
+      return Promise.resolve({ ok: true });
+    },
+  });
+  service.clientOrigin = 'http://127.0.0.1:12345';
+  service.lastClientPollAt = 0;
+  service.state = () => ({
+    available: true,
+    playing: true,
+    player: 'qq',
+    songId: '',
+    track: { title: 'x' },
+    line: { text: 'hello', t: 1000 },
+    lyrics: { status: 'ready' },
+  });
+
+  service._maybeHostDeliver();
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /\/dsh-pet-7340\/broadcast/);
+  assert.ok(calls[0].text.startsWith('\u200B♪ hello'));
+
+  service._maybeHostDeliver(); // 同一行、未到 keepAlive，不重复
+  assert.equal(calls.length, 1);
+
+  service.lastClientPollAt = Date.now(); // 前台恢复轮询
+  service._maybeHostDeliver();
+  assert.equal(calls.length, 1);
   rmSync(home, { recursive: true, force: true });
 });
 
