@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.3.7
+
+- 歌词缓存 schema 升到 v2：解析/制作名单/翻译规则变化时旧缓存自动失效并被删除
+- 每写 50 次缓存清理超过 400 个文件，长时间不重启也不会无限膨胀
+- 客户端 state/broadcast 加 5s / 8s 超时与 in-flight 防重入，宿主卡住时不会无限挂起或堆叠 tick
+- 客户端 offset 读取改为严格 number 判断，兼容没有 `state.offsetMs` 的旧宿主
+- 客户端切歌时清空 `lastKey/lastSentAt`，新歌第一句文本碰巧相同时也会重新投喂
+- 网易云日志 carry 也受 `MAX_CARRY_BYTES` 限制，异常超长半行不会无限增长
+- QQ/网易云同时开着且都没有可读会话时，提示改为合并原因，不再只说“网易云没在播放”
+- 按 songId 取词时，曲目详情接口失败不再阻断歌词接口
+- SMTC helper 的 spawn `error` 会释放 child 并安排重试；退出/重启时清空行缓冲
+- SMTC helper 源码更新后重新编译失败时，回退使用已有的旧 helper，不直接丢掉 QQ 路径
+- 网易云恢复会话后重置 `neteaseReason`，`/health` 不再显示旧的 `elog-missing`
+- 新增缓存 schema / 详情失败回退单测，共 39 项
+
 ## 1.3.6
 
 - 新增 `neteaseOffsetMs`：网易云可以单独设提前量，`null` 时跟随 `offsetMs`；客户端排程使用当前播放器的有效 offset

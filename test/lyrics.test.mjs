@@ -7,6 +7,7 @@ import {
   mergeTranslation,
   parseLrc,
   pickBest,
+  resolveLyrics,
   scoreCandidate,
   stripLeadingCredits,
 } from '../lib/lyrics.js';
@@ -101,4 +102,36 @@ test('stripLeadingCredits：整首都是名单时原样返回', () => {
   const track = { title: '晴天', artist: '周杰伦' };
   const lines = parseLrc('[00:01.00]词：周杰伦\n[00:02.00]曲：周杰伦').lines;
   assert.equal(stripLeadingCredits(lines, track).length, 2);
+});
+
+test('按 songId 取词时详情失败不阻断歌词接口', async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('/api/song/detail')) throw new Error('detail down');
+    if (u.includes('/api/song/lyric')) {
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            code: 200,
+            lrc: { lyric: '[00:01.000]hello' },
+            tlyric: { lyric: '' },
+          }),
+      };
+    }
+    throw new Error('unexpected ' + u);
+  };
+  try {
+    const r = await resolveLyrics(
+      { songId: '1', title: '', artist: '', album: '', durationMs: 0 },
+      { player: 'netease', songId: '1', timeoutMs: 1000 },
+    );
+    assert.equal(r.ok, true);
+    assert.equal(r.source, 'netease');
+    assert.equal(r.lines[0].text, 'hello');
+  } finally {
+    globalThis.fetch = realFetch;
+  }
 });
