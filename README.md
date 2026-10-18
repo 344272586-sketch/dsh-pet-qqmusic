@@ -159,6 +159,7 @@ dsh plugin --profile web add link:<PLUGIN_DIR>
 | `enabled` | `true` | 总开关；关掉后浏览器侧不再投喂 |
 | `petId` | `""` | 目标桌宠 id；空 = dsh-pet 当前桌宠（`/pet` 选中的那只，未选则第一只） |
 | `player` | `"auto"` | `auto`：谁在播放就用谁；`qq` / `netease` 强制指定播放器（两个客户端同时开时有用） |
+| `neteasePath` | `""` | 自定义 `cloudmusic.elog` 路径；空 = `%USERPROFILE%\AppData\Local\NetEase\CloudMusic\cloudmusic.elog`（改完需重启插件） |
 | `displayMode` | `"auto"` | `auto`：web 桌宠用自绘气泡、桌面悬浮回落到投喂；`overlay`：只用自绘气泡（不触发动画，桌面模式不显示）；`bubble`：始终走 `dsh-pet /broadcast` |
 | `offsetMs` | `600` | 歌词提前量（毫秒），范围 −5000 ~ 5000；正数 = 歌词更早出现。默认 600 是补偿 dsh-pet 气泡约 1 秒的轮询 |
 | `keepAliveSec` | `8` | 同一行超过 N 秒补发一次，防止气泡 10 秒自动收起；`0` = 不补发 |

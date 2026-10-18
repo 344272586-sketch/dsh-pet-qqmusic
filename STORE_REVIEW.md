@@ -6,13 +6,12 @@
 93c509b1c6db7bfa54f26a1d62414d1fe264f48a
 ```
 
-版本：`1.3.4`（1.3.4 只增加本文件、文档和测试，运行时行为与 1.3.3 相同）  
+版本：`1.3.5`（运行时固定源码为 1.3.3；1.3.4/1.3.5 只增加审阅材料、客户端健壮性与测试）  
 仓库：`https://github.com/344272586-sketch/dsh-pet-qqmusic`
 
 ## 状态
 
-- **已验证**：QQ 音乐 SMTC / 网易云 elog 双路径、按 `player` 选择、seek 处理、35 项单测、Linux CI Node 20/22、运行时编译 helper；`build-dsh-plugin` 只读审计 80/100，无 blocker，状态 `isolated-acceptance-ready`。
-- **部分验证**：Windows 实机只覆盖当前机器（Windows 11、QQ 音乐 22.76、网易云 3.1.39）；其他 Windows 版本与播放器小版本未逐一验收。
+- **已验证**：QQ 音乐 SMTC / 网易云 elog 双路径、按 `player` 选择、seek 处理、36 项单测、Linux CI Node 20/22、运行时编译 helper；`build-dsh-plugin` 只读审计 80/100，无 blocker，状态 `isolated-acceptance-ready`。
 - **部分验证**：Windows 实机只覆盖当前机器（Windows 11、QQ 音乐 22.76、网易云 3.1.39）；其他 Windows 版本与播放器小版本未逐一验收。
 - **未验证**：DSH STORE 人工专项审阅、一次性 Profile 的安装/启动/卸载/回滚矩阵；本项目没有执行第三方 install/build/test。
 - **受阻**：DSH STORE 自动策略不接受 `files` / `network` / `commands` 任一信号；这是功能必需能力，不是扫描遗漏。
@@ -72,4 +71,4 @@ fixed-source security warnings require review
 - `SECURITY.md`：安全边界
 - `lib/smtc.js`：运行时编译与进程看护
 - `lib/netease-elog.js`：网易云日志解码
-- `test/*.test.mjs`：35 项单测
+- `test/*.test.mjs`：36 项单测
