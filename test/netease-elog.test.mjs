@@ -60,9 +60,11 @@ test('parseElogLine：切歌 / seek / 播放状态', () => {
 });
 
 test('parseElogHeader：uptime 与墙钟对不上时退回日志时间', () => {
-  const ts = Math.round(os.uptime() * 1000) - 3600 * 1000;
+  // 用正数偏移：CI 容器 uptime 可能不到 1 小时，减 1 小时会得到负数，
+  // 而 header 的 uptime 字段是 \d+，负号会让整行匹配失败。
+  const ts = Math.round(os.uptime() * 1000) + 3600 * 1000;
   const h = parseElogHeader(line('x', ts));
-  assert.ok(Number.isFinite(h.eventTimeMs));
+  assert.ok(h && Number.isFinite(h.eventTimeMs));
   assert.ok(Math.abs(h.eventTimeMs - h.datetimeMs) < 1000, '应退回秒级墙钟');
   assert.equal(h.pid, 1);
 });
