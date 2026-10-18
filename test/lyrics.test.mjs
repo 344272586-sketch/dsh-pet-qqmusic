@@ -104,6 +104,28 @@ test('stripLeadingCredits：整首都是名单时原样返回', () => {
   assert.equal(stripLeadingCredits(lines, track).length, 2);
 });
 
+test('stripLeadingCredits：复杂制作名单整块去掉', () => {
+  const credits = [
+    '弦乐编写：金若晨',
+    '弦乐：国际首席爱乐',
+    '大提琴：张平',
+    '和声编写：徐杰',
+    '和声：姜糖Shirley',
+    '录音师：多斯@Studio21A',
+    '录音棚：Studio21A',
+    '混音/母带：崔禄',
+    '杜比全景声混音：张步若',
+    '制作统筹：潘卉琦',
+    '企划统筹：任孝恒',
+    '出品人：李思睿',
+    '出品公司：北京大象无形音乐有限公司',
+  ];
+  const lrc = credits.map((text, i) => `[00:0${i + 1}.000]${text}`).join('\n') + '\n[00:32.840]樱花覆盖地面';
+  const out = stripLeadingCredits(parseLrc(lrc).lines, { title: '我想念', artist: '汪苏泷' });
+  assert.equal(out.length, 1);
+  assert.equal(out[0].text, '樱花覆盖地面');
+});
+
 test('按 songId 取词时详情失败不阻断歌词接口', async () => {
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url) => {

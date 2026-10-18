@@ -285,6 +285,9 @@ dsh-pet 的 `/broadcast` 在桌面 helper 里最终走 `PetSprite.showWhisper()`
 3. `line` 是不是 `null` 而 `lyrics.status` 是 `ready`：通常只是还没到第一句（前奏、制作名单），气泡会显示歌名（`showTrackInfo` 默认开）。
 4. `lyrics.status` 是 `error` 就看 `lyrics.error`；`hint.code` 是 `smtc-off` 就去开 QQ 音乐的 SMTC。
 
+**开头十几秒没歌词 / 歌词像消失**  
+常见于歌名后面带一长串制作名单（弦乐、录音师、混音、出品公司…）的 LRC。1.3.8 起会整块跳过这些行，回落到「歌名 - 歌手」，不再让气泡空白到 10 秒过期。若把 `showTrackInfo` 关了，这段就真的什么都不显示。
+
 **QQ 音乐和网易云同时开着，投谁**  
 默认 `player: "auto"` 选正在播放的那个；两个都在播时优先时间轴有效、最近更新的，平手偏 QQ。也可以强制：
 
