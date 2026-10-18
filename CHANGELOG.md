@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.4
+
+- 新增 `STORE_REVIEW.md`：固定源码、权限矩阵、扫描复现、已验证/未验证/受阻状态与下一步
+- 新增 watcher 抛异常时的 fail-closed 单测（35 项）
+- 重命名 `test/client.test.mjs` 为 `test/ui-delivery.test.mjs`，避免
+  `build-dsh-plugin` 把它误判成 Browser Client Host import
+- 运行时行为与 1.3.3 相同
+
 ## 1.3.3
 
 - 不再随包分发 `lib/smtc-helper.exe`：首次启动用 Windows 自带 `csc.exe` 从

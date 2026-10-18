@@ -1,6 +1,6 @@
 {
   "name": "dsh-pet-qqmusic",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "鲸歌：让 dsh-pet 跟着 QQ 音乐 / 网易云音乐逐行显示歌词。QQ 音乐走 Windows SMTC，网易云读本地 cloudmusic.elog（无需插件、支持 seek），延迟可调、翻译、桌面悬浮模式不切动画",
   "icon": "assets/logo.svg",
   "author": "dsh-pet-qqmusic contributors",
@@ -40,6 +40,7 @@
     "cordis.patch.yml",
     "README.md",
     "PERMISSIONS.md",
+    "STORE_REVIEW.md",
     "CHANGELOG.md",
     "THIRD_PARTY_NOTICES.md",
     "LICENSE",

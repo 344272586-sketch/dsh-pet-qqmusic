@@ -332,7 +332,7 @@ web 模式默认用自绘气泡，不会出现这个问题。
 - **helper 源码随包**：`lib/smtc-helper.cs` 可自行编译核对
 - **补丁有备份**：`events.js.bak-qqmusic`，随时可还原
 
-详见 [SECURITY.md](SECURITY.md) 与 [PERMISSIONS.md](PERMISSIONS.md)（文件 / 网络 / 命令 / 凭据 / 失败边界）。
+详见 [SECURITY.md](SECURITY.md) 与 [PERMISSIONS.md](PERMISSIONS.md)（文件 / 网络 / 命令 / 凭据 / 失败边界）。DSH STORE 的固定源码扫描与人工复核材料见 [STORE_REVIEW.md](STORE_REVIEW.md)。
 
 ---
 

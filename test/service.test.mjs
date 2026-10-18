@@ -402,6 +402,22 @@ test('player=netease 时 elog 不可用可回退到网易云 SMTC', async () => 
   rmSync(home, { recursive: true, force: true });
 });
 
+test('watcher 抛异常时 fail closed，不投喂脏状态', () => {
+  const { service, home } = makeService({
+    watcher: {
+      getState: () => {
+        throw new Error('smtc exploded');
+      },
+    },
+  });
+  service._tick();
+  const s = service.state();
+  assert.equal(s.available, false);
+  assert.equal(s.playing, false);
+  assert.equal(s.line, null);
+  rmSync(home, { recursive: true, force: true });
+});
+
 test('网易云 elog 与 SMTC 同时可用时优先 elog', async () => {
   const { service, home } = makeService({
     watcher: {
