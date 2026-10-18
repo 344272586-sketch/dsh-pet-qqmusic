@@ -3,13 +3,20 @@ import { appendFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { NetEaseElogWatcher, decodeElog, encodeElog, makeTrack, parseElogLine } from '../lib/netease-elog.js';
+import {
+  NetEaseElogWatcher,
+  decodeElog,
+  encodeElog,
+  makeTrack,
+  parseElogHeader,
+  parseElogLine,
+} from '../lib/netease-elog.js';
 
 const pad = (n) => String(n).padStart(2, '0');
 
-function header(ts, date = new Date()) {
+function header(ts, date = new Date(), pid = 1) {
   const dt = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-  return `[1:2:1018/120000:${ts}:INFO:app.cpp(1)] [${dt}] `;
+  return `[${pid}:2:1018/120000:${ts}:INFO:app.cpp(1)] [${dt}] `;
 }
 
 const TRACK = {
@@ -20,9 +27,12 @@ const TRACK = {
   album: { name: '测试专辑' },
 };
 
-function line(body, ts = Math.round(os.uptime() * 1000), date = new Date()) {
-  return header(ts, date) + body;
+function line(body, ts = Math.round(os.uptime() * 1000), date = new Date(), pid = 1) {
+  return header(ts, date, pid) + body;
 }
+
+const silent = { log() {}, warn() {}, error() {} };
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 test('decode/encode elog 可逆，中文不乱码', () => {
   const text = '{ "name": "测试歌曲", "artist": "测试歌手" }\n';
@@ -48,6 +58,116 @@ test('parseElogLine：切歌 / seek / 播放状态', () => {
   assert.equal(d.type, 'native-load');
   assert.equal(d.songId, '123456');
 });
+
+test('parseElogHeader：uptime 与墙钟对不上时退回日志时间', () => {
+  const ts = Math.round(os.uptime() * 1000) - 3600 * 1000;
+  const h = parseElogHeader(line('x', ts));
+  assert.ok(Number.isFinite(h.eventTimeMs));
+  assert.ok(Math.abs(h.eventTimeMs - h.datetimeMs) < 1000, '应退回秒级墙钟');
+  assert.equal(h.pid, 1);
+});
+
+test('parseElogLine：识别 crash server 的进程退出行', () => {
+  const ev = parseElogLine(line('Process 16948 exited.', Math.round(os.uptime() * 1000), new Date(), 3540));
+  assert.equal(ev.type, 'exit');
+  assert.equal(ev.reason, 'process');
+  assert.equal(ev.exitedPid, 16948);
+  assert.equal(ev.pid, 3540);
+
+  // 真实日志里这行没有第二段墙钟时间
+  const bare = `[3540:20144:1018/110046:${Math.round(os.uptime() * 1000)}:INFO:cloudmusic_crash_server.cpp(470)] Process 16948 exited.`;
+  const ev2 = parseElogLine(bare);
+  assert.equal(ev2.type, 'exit');
+  assert.equal(ev2.exitedPid, 16948);
+  assert.equal(ev2.pid, 3540);
+});
+
+test('NetEaseElogWatcher：跨读取边界的汉字不会被劈坏', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'dsh-pet-netease-'));
+  const file = path.join(dir, 'cloudmusic.elog');
+  writeFileSync(file, '');
+  const w = new NetEaseElogWatcher({ path: file, pollMs: 80, logger: silent });
+  w.start();
+  await sleep(150);
+
+  const buf = encodeElog(line(`【playing】,"checkPlayPrivilege",${JSON.stringify(TRACK)}`) + '\n');
+  const cut = buf.indexOf(encodeElog('测')) + 1; // 正好切在「测」的三个字节中间
+  assert.ok(cut > 0);
+  appendFileSync(file, buf.subarray(0, cut));
+  await sleep(200);
+  assert.equal(w.getState().available, false, '半行还不能解析');
+
+  appendFileSync(file, buf.subarray(cut));
+  await sleep(200);
+  const s = w.getState();
+  assert.equal(s.available, true);
+  assert.equal(s.session.title, '测试歌曲');
+  assert.equal(s.session.artist, '测试歌手');
+
+  w.stop();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('NetEaseElogWatcher：渲染进程退出不清空，主进程退出才清空', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'dsh-pet-netease-'));
+  const file = path.join(dir, 'cloudmusic.elog');
+  const ts = Math.round(os.uptime() * 1000);
+  writeFileSync(
+    file,
+    encodeElog(
+      [
+        line(`【playing】,"playOneTrackInPlayingList",${JSON.stringify(TRACK)}`, ts, new Date(), 100),
+        line('【playing】,"native播放state",1,"123456_X"', ts + 10, new Date(), 100),
+      ].join('\n') + '\n',
+    ),
+  );
+  const w = new NetEaseElogWatcher({ path: file, pollMs: 80, logger: silent });
+  w.start();
+  await sleep(200);
+  assert.equal(w.getState().available, true);
+
+  // crash server 报告渲染进程退出：不是主进程，忽略
+  appendFileSync(
+    file,
+    encodeElog(line('Process 200 exited.', Math.round(os.uptime() * 1000), new Date(), 3540) + '\n'),
+  );
+  await sleep(200);
+  assert.equal(w.getState().available, true, '渲染进程退出不应清空播放状态');
+
+  // 主进程 100 退出：清空
+  appendFileSync(
+    file,
+    encodeElog(line('Process 100 exited.', Math.round(os.uptime() * 1000), new Date(), 3540) + '\n'),
+  );
+  await sleep(200);
+  assert.equal(w.getState().available, false, '主进程退出后应清空残留会话');
+
+  w.stop();
+  rmSync(dir, { recursive: true, force: true });
+});
+
+test('NetEaseElogWatcher：预载时主进程已退出则直接用空状态', async () => {
+  const dir = mkdtempSync(path.join(os.tmpdir(), 'dsh-pet-netease-'));
+  const file = path.join(dir, 'cloudmusic.elog');
+  const ts = Math.round(os.uptime() * 1000);
+  writeFileSync(
+    file,
+    encodeElog(
+      [
+        line(`【playing】,"playOneTrackInPlayingList",${JSON.stringify(TRACK)}`, ts, new Date(), 100),
+        line('【playing】,"native播放state",1,"123456_X"', ts + 10, new Date(), 100),
+        line('Process 100 exited.', ts + 20, new Date(), 3540),
+      ].join('\n') + '\n',
+    ),
+  );
+  const w = new NetEaseElogWatcher({ path: file, pollMs: 80, logger: silent });
+  w.start();
+  await sleep(200);
+  assert.equal(w.getState().available, false);
+  w.stop();
+  rmSync(dir, { recursive: true, force: true });
+});
+
 
 test('NetEaseElogWatcher：预载暂停位置，追加事件后前进/seek', async () => {
   const dir = mkdtempSync(path.join(os.tmpdir(), 'dsh-pet-netease-'));

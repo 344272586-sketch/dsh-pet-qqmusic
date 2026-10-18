@@ -58,6 +58,7 @@ function makeService(overrides = {}) {
       watcher,
       netease,
       resolver: overrides.resolver ?? resolver,
+      detailLookup: overrides.detailLookup,
       config: { enabled: true, offsetMs: 0, hints: true, ...(overrides.config ?? {}) },
     },
   );
@@ -145,6 +146,126 @@ test('关掉 enabled 后 state 仍可读，但浏览器侧不会投喂', async (
   rmSync(home, { recursive: true, force: true });
 });
 
+test('state 的进度补到请求时刻，而不是停在上一次 tick', async () => {
+  const { service, home } = makeService({
+    watcher: {
+      getState: () => ({
+        available: true,
+        session: {
+          source: 'QQMusic.exe',
+          title: '晴天',
+          artist: '周杰伦',
+          album: '叶惠美',
+          status: 'Playing',
+          playing: true,
+          positionMs: 1000,
+          durationMs: 269000,
+          lastUpdatedMs: Date.now(),
+        },
+      }),
+    },
+  });
+  service._tick();
+  await settle();
+  await new Promise((r) => setTimeout(r, 80));
+  const s = service.state();
+  assert.ok(s.positionMs >= 1050, '请求时应外推 80ms，实际 ' + s.positionMs);
+  assert.equal(s.line.text, '第一行');
+  rmSync(home, { recursive: true, force: true });
+});
+
+test('重新取词绕过缓存，且不会在下一 tick 重复请求', async () => {
+  let calls = 0;
+  const neteaseSession = {
+    available: true,
+    session: {
+      source: 'cloudmusic.exe',
+      player: 'netease',
+      title: '起风了',
+      artist: '买辣椒也用券',
+      album: '起风了',
+      status: 'Playing',
+      playing: true,
+      positionMs: 1000,
+      durationMs: 325868,
+      lastUpdatedMs: Date.now(),
+      songId: '1330348068',
+      positionSource: 'elog',
+    },
+  };
+  const { service, home } = makeService({
+    watcher: { getState: () => ({ available: false, session: null, reason: 'no-session' }) },
+    netease: { getState: () => neteaseSession },
+    resolver: async () => {
+      calls++;
+      return {
+        ok: true,
+        source: 'netease',
+        matched: { songId: '1330348068', title: '起风了', artist: '买辣椒也用券', album: '起风了', durationMs: 325868, score: 1 },
+        lrc: '',
+        lines: LINES,
+        instrumental: false,
+      };
+    },
+  });
+  service._tick();
+  await settle();
+  assert.equal(calls, 1);
+
+  assert.equal(service.refreshLyrics(), true);
+  await settle();
+  assert.equal(calls, 2, '刷新必须重新取词，不能直接读缓存');
+
+  service._tick();
+  await settle();
+  assert.equal(calls, 2, '下一 tick 不应把刷新当成切歌再取一次');
+  rmSync(home, { recursive: true, force: true });
+});
+
+test('网易云只给 songId 时用取词结果补标题，不重复请求详情', async () => {
+  let detailCalls = 0;
+  const { service, home } = makeService({
+    watcher: { getState: () => ({ available: false, session: null, reason: 'no-session' }) },
+    netease: {
+      getState: () => ({
+        available: true,
+        session: {
+          source: 'cloudmusic.exe',
+          player: 'netease',
+          title: '',
+          artist: '',
+          album: '',
+          status: 'Playing',
+          playing: true,
+          positionMs: 1000,
+          durationMs: 0,
+          lastUpdatedMs: Date.now(),
+          songId: '999',
+          positionSource: 'elog',
+        },
+      }),
+    },
+    resolver: async () => ({
+      ok: true,
+      source: 'netease',
+      matched: { songId: '999', title: '详情歌名', artist: '详情歌手', album: '详情专辑', durationMs: 200000, score: 0 },
+      lrc: '',
+      lines: LINES,
+      instrumental: false,
+    }),
+    detailLookup: async () => {
+      detailCalls++;
+      return null;
+    },
+  });
+  service._tick();
+  await settle();
+  const s = service.state();
+  assert.equal(s.track.title, '详情歌名');
+  assert.equal(s.track.artist, '详情歌手');
+  assert.equal(detailCalls, 0, '取词结果已经带详情，不应再查一次');
+  rmSync(home, { recursive: true, force: true });
+});
 test('网易云 elog 会话：player / positionSource / songId 与按 id 取词', async () => {
   let resolverArgs = null;
   const { service, home } = makeService({

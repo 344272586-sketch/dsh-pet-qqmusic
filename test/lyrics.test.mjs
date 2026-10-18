@@ -74,6 +74,18 @@ test('cacheKey：同曲稳定，不同时长不同键', () => {
   assert.notEqual(cacheKey(a), cacheKey({ ...a, durationMs: 280000 }));
 });
 
+test('cacheKey：网易云按 songId 命中，标题/时长补齐后仍是同一个键', () => {
+  const bare = { player: 'netease', songId: '3343962691', title: '', artist: '', album: '', durationMs: 0 };
+  const full = { player: 'netease', songId: '3343962691', title: '无始无终', artist: 'TC', album: '无始无终', durationMs: 158429 };
+  assert.equal(cacheKey(bare), cacheKey(full));
+  assert.notEqual(cacheKey(bare), cacheKey({ ...full, songId: '3343962692' }));
+  // QQ 仍按标题/时长区分版本
+  assert.notEqual(
+    cacheKey({ player: 'qq', title: '晴天', artist: '周杰伦', album: '叶惠美', durationMs: 269000 }),
+    cacheKey({ player: 'qq', title: '晴天', artist: '周杰伦', album: '叶惠美', durationMs: 280000 }),
+  );
+});
+
 test('stripLeadingCredits：去掉开头词曲编曲与标题行，正文里的“词：”不误删', () => {
   const track = { title: '晴天', artist: '周杰伦' };
   const lines = parseLrc(

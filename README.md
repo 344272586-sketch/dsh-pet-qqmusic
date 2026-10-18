@@ -234,7 +234,7 @@ dsh-pet 的 `/broadcast` 在桌面 helper 里最终走 `PetSprite.showWhisper()`
 | `GET /dsh-pet-qqmusic/state.json` | 当前完整状态 |
 | `GET /dsh-pet-qqmusic/health` | helper / 歌词状态 |
 | `GET/PUT /dsh-pet-qqmusic/config.json` | 读 / 改配置 |
-| `POST /dsh-pet-qqmusic/refresh` | 强制重新取词 |
+| `POST /dsh-pet-qqmusic/refresh` | 强制重新取词（绕过磁盘缓存） |
 
 没有 SMTC 会话时：
 
