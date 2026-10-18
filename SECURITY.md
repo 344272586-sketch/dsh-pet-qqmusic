@@ -2,14 +2,23 @@
 
 ## 不会收集什么
 
-- 不需要 DeepSeek / OpenAI / QQ 音乐的任何 API Key。
-- 不读取 QQ 音乐或浏览器的 Cookie、账号密码、登录凭据。
+- 不需要 DeepSeek / OpenAI / QQ 音乐 / 网易云音乐的任何 API Key。
+- 不读取 QQ 音乐、网易云音乐或浏览器的 Cookie、账号密码、登录凭据。
 - 不上传听歌记录、账号信息或本机文件。
 
 插件只做两件事：
 
-1. 通过 Windows SMTC 读取本机当前媒体会话的**公开元数据**（歌名 / 歌手 / 专辑 / 播放进度）；
-2. 用歌名 + 歌手去 QQ 音乐公开曲库搜索并拉取 LRC 歌词（失败时可选回落 lrclib）。
+1. 读取本机播放器的**公开播放状态**：
+   - QQ 音乐：Windows SMTC（歌名 / 歌手 / 专辑 / 进度 / 状态）；
+   - 网易云音乐：本地 `%LOCALAPPDATA%\NetEase\CloudMusic\cloudmusic.elog` 中的歌名 / 歌手 / 专辑 / songId / 进度 / 状态；
+2. 用歌名 + 歌手或 songId 去公开曲库（QQ 音乐 / 网易云音乐）拉取 LRC 歌词，失败时可选回落 lrclib。
+
+## 网易云日志
+
+`cloudmusic.elog` 里包含 `musicurl` 等带签名的播放地址。`lib/netease-elog.js` **只解析**
+`checkPlayPrivilege` / `playOneTrackInPlayingList` / `native播放state` / `setPlayingPosition` /
+`native播放资源load完成` 这几类事件，并把结果限制在歌名、歌手、专辑、时长、songId、进度和播放状态。
+`musicurl` 不会进入状态、不会落盘、不会上传。
 
 ## 二进制文件
 

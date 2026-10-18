@@ -92,12 +92,17 @@ internal static class Program
         {
             try
             {
-                if ((s.SourceAppUserModelId ?? "").IndexOf("QQMusic", StringComparison.OrdinalIgnoreCase) >= 0)
+                string src = s.SourceAppUserModelId ?? "";
+                bool isQQ = src.IndexOf("QQMusic", StringComparison.OrdinalIgnoreCase) >= 0;
+                bool isNetease = src.IndexOf("cloudmusic", StringComparison.OrdinalIgnoreCase) >= 0
+                    || src.IndexOf("netease", StringComparison.OrdinalIgnoreCase) >= 0
+                    || src.IndexOf("com.netease", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (isQQ || isNetease)
                 {
                     picked = s;
                     break;
                 }
-                // 调试模式：没有 QQ 音乐时也读一个会话（--any），只用于自检
+                // 调试模式：没有目标播放器时也读一个会话（--any），只用于自检
                 if (allowAny && picked == null) picked = s;
             }
             catch { }
@@ -127,7 +132,9 @@ internal static class Program
             if (double.IsNaN(rate) || double.IsInfinity(rate)) rate = 1;
             bool playing = info.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
             sb.Append("{\"source\":\"").Append(Esc(picked.SourceAppUserModelId));
-            sb.Append("\",\"title\":\"").Append(Esc(props.Title));
+            bool pickedQQ = (picked.SourceAppUserModelId ?? "").IndexOf("QQMusic", StringComparison.OrdinalIgnoreCase) >= 0;
+            sb.Append("\",\"player\":\"").Append(pickedQQ ? "qq" : "netease").Append("\"");
+            sb.Append(",\"title\":\"").Append(Esc(props.Title));
             sb.Append("\",\"artist\":\"").Append(Esc(props.Artist));
             sb.Append("\",\"album\":\"").Append(Esc(props.AlbumTitle));
             sb.Append("\",\"status\":\"").Append(info.PlaybackStatus.ToString());

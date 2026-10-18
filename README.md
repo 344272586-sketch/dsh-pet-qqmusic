@@ -1,8 +1,8 @@
 # 鲸歌 · dsh-pet-qqmusic
 
-> 让 dsh-pet 跟着 QQ 音乐，把歌词一句一句唱给你听。
+> 让 dsh-pet 跟着 QQ 音乐 / 网易云音乐，把歌词一句一句唱给你听。
 
-一个 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 插件：读取 Windows SMTC 里 QQ 音乐的播放进度，按 LRC 时间戳把当前歌词送进 dsh-pet 的对话气泡。QQ 音乐播到哪一句，桌宠就显示哪一句。
+一个 [DeepSeek Harness（DSH）](https://github.com/deepseek-ai/deepseek-harness) 插件：QQ 音乐走 Windows SMTC 读进度，网易云音乐读本地 `cloudmusic.elog`（不需要 BetterNCM / InfLink，支持 seek），按 LRC 时间戳把当前歌词送进 dsh-pet 的对话气泡。播到哪一句，桌宠就显示哪一句。
 
 <p align="center">
   <img src="assets/banner.svg" alt="鲸歌 · dsh-pet-qqmusic" width="100%">
@@ -22,7 +22,7 @@
 dsh-pet 是一只住在 DSH 里的蓝鲸。鲸歌是鲸鱼在深海里传得很远的声音；这个插件做的事情很简单——把正在播放的歌，一句一句递到它嘴边。
 
 项目名：**鲸歌**（Whale Song）  
-包名 / 仓库名：`dsh-pet-qqmusic`
+包名 / 仓库名：`dsh-pet-qqmusic`（最初只支持 QQ 音乐，现在同时支持 QQ 音乐 / 网易云音乐）
 
 ---
 
@@ -31,6 +31,9 @@ dsh-pet 是一只住在 DSH 里的蓝鲸。鲸歌是鲸鱼在深海里传得很�
 ```text
 QQ 音乐   晴天 — 周杰伦        00:29
 桌宠气泡  ♪ 故事的小黄花
+
+网易云    熄灭 — TC            01:09
+桌宠气泡  ♪ 可不知不觉你的心已越来越远
 ```
 
 歌词会随着播放进度逐行切换。默认带 600ms 提前量，用来抵消 dsh-pet 气泡约 1 秒的状态轮询；觉得快/慢可以直接调。
@@ -39,15 +42,17 @@ QQ 音乐   晴天 — 周杰伦        00:29
 
 ## 特性
 
-- **逐行同步**：读 Windows SMTC 的播放进度，按 LRC 时间戳切行，不靠猜
+- **双播放器**：QQ 音乐（SMTC）+ 网易云音乐（本地 elog），`player: auto` 自动跟随正在播放的那个
+- **网易云无需插件**：直接解析 `cloudmusic.elog`，不需要 BetterNCM / InfLink；能感知播放/暂停和**拖拽 seek**
+- **逐行同步**：按 LRC 时间戳切行，不靠猜
 - **低延迟**：宿主 200ms 采样 + 客户端 300ms 轮询，并按 `nextLine.t` 主动排程下一行；默认 `offsetMs=600` 补偿 dsh-pet 的气泡轮询
-- **版本匹配**：按「歌名 + 歌手 + 时长」在 QQ 音乐曲库挑版本，Live / 伴奏 / 翻唱降权
+- **版本匹配**：按「歌名 + 歌手 + 时长」在曲库挑版本，Live / 伴奏 / 翻唱降权；网易云优先用 songId 直接取词
 - **跳过制作名单**：自动去掉开头的「词：/曲：/编曲：/吉他：」和「歌名 - 歌手」标题行
-- **纯音乐识别**：QQ 音乐返回「此歌曲为没有填词的纯音乐」时显示「纯音乐，请欣赏」，不乱唱
-- **翻译可选**：QQ 音乐有翻译时，可显示原文 + 译文两行
+- **纯音乐识别**：返回「此歌曲为没有填词的纯音乐」时显示「纯音乐，请欣赏」，不乱唱
+- **翻译可选**：有翻译时，可显示原文 + 译文两行
 - **不刷新宠物模型**：web 桌宠用自绘歌词气泡；桌面悬浮模式用一键 quiet 补丁，歌词只更新气泡，不切动画、不重播
 - **多桌宠**：`petId` 留空 = 当前桌宠，也可以固定投给某一只
-- **零密钥**：不需要 DeepSeek / OpenAI / QQ 音乐的任何 API Key，也不读 Cookie
+- **零密钥**：不需要 DeepSeek / OpenAI / QQ 音乐 / 网易云的任何 API Key，也不读 Cookie
 
 ---
 
@@ -55,8 +60,9 @@ QQ 音乐   晴天 — 周杰伦        00:29
 
 | 条件 | 说明 |
 |---|---|
-| Windows 10 1809+ / Windows 11 | 依赖 Windows SMTC（系统媒体传输控制） |
+| Windows 10 1809+ / Windows 11 | QQ 音乐依赖 Windows SMTC；网易云走本地日志 |
 | QQ 音乐 PC 客户端 | 建议 ≥ 21.10.2962（更早版本不上报播放进度）；本项目在 22.76 上验证 |
+| 网易云音乐 PC 客户端 | 建议 3.0+（会写 `cloudmusic.elog`）；本项目在 3.1.39 上验证 |
 | dsh-pet | 已安装并启用；用到它的 `/dsh-pet-7340/broadcast` 端点，建议 0.3.5+ |
 | DSH | 桌面版（desktop profile）或 `dsh web` 均可 |
 
@@ -70,6 +76,23 @@ QQ 音乐 → 主菜单（≡）→ 设置 → 常规设置 → 通知
 ```
 
 不同小版本菜单文案可能略有差异，认准 **SMTC / 系统媒体传输控制**。开启后播放任意歌曲，系统的媒体控制中心应该能看到 QQ 音乐。
+
+### 网易云音乐：不需要 SMTC
+
+网易云 3.0+ 不会注册新版 SMTC 会话，但会把播放事件写进：
+
+```text
+%LOCALAPPDATA%\NetEase\CloudMusic\cloudmusic.elog
+```
+
+插件直接读这个日志：
+
+- 不需要 BetterNCM / InfLink-rs，不需要注入 DLL
+- 不需要登录 API，不读 Cookie
+- 能拿到歌名 / 歌手 / 专辑 / songId / 播放进度 / 暂停状态 / seek 位置
+- 只解析上述字段，日志里的 `musicurl`（带签名）不会被读取或上传
+
+只要启动过网易云并播放过一首歌，日志就会存在。如果日志不存在，插件会在桌宠气泡提示。
 
 ---
 
@@ -135,6 +158,7 @@ dsh plugin --profile web add link:<PLUGIN_DIR>
 |---|---|---|
 | `enabled` | `true` | 总开关；关掉后浏览器侧不再投喂 |
 | `petId` | `""` | 目标桌宠 id；空 = dsh-pet 当前桌宠（`/pet` 选中的那只，未选则第一只） |
+| `player` | `"auto"` | `auto`：谁在播放就用谁；`qq` / `netease` 强制指定播放器（两个客户端同时开时有用） |
 | `displayMode` | `"auto"` | `auto`：web 桌宠用自绘气泡、桌面悬浮回落到投喂；`overlay`：只用自绘气泡（不触发动画，桌面模式不显示）；`bubble`：始终走 `dsh-pet /broadcast` |
 | `offsetMs` | `600` | 歌词提前量（毫秒），范围 −5000 ~ 5000；正数 = 歌词更早出现。默认 600 是补偿 dsh-pet 气泡约 1 秒的轮询 |
 | `keepAliveSec` | `8` | 同一行超过 N 秒补发一次，防止气泡 10 秒自动收起；`0` = 不补发 |
@@ -167,11 +191,15 @@ Invoke-RestMethod http://127.0.0.1:<DSH_PORT>/dsh-pet-qqmusic/config.json -Metho
 
 ```text
 QQ 音乐 PC ──SMTC──> smtc-helper.exe（C# / WinRT）
-                          │  JSON 行：title / artist / album / status / position / duration
+                          │  title / artist / album / status / position / duration
+                          │
+网易云 PC ──cloudmusic.elog──> lib/netease-elog.js（逐字节解码 + 状态机）
+                          │  songId / title / artist / album / position / seek / 播放状态
                           ▼
                     dsh-pet-qqmusic 宿主（Node）
-                          │  1. 按「歌名 + 歌手 + 时长」搜索 QQ 音乐曲库
-                          │  2. GetPlayLyricInfo 拉 LRC（base64）
+                          │  1. player=auto：选正在播放的那个
+                          │  2. QQ：QQ 曲库搜索 + GetPlayLyricInfo
+                          │     网易云：songId 直接取词（本地缓存 / 公开 API）
                           │  3. 解析时间戳 / 合并翻译 / 纯音乐识别 / 磁盘缓存
                           ▼
               GET /dsh-pet-qqmusic/state.json（当前行 + 下一行 + 进度）
@@ -235,7 +263,27 @@ dsh-pet 的 `/broadcast` 在桌面 helper 里最终走 `PetSprite.showWhisper()`
 ## 常见问题
 
 **桌宠只显示「QQ音乐没开 SMTC…」**  
-按上面的路径开启 SMTC；开启后不用重启 DSH，插件下一轮会自己读到。
+按上面的路径开启 SMTC；开启后不用重启 DSH，插件下一轮会自己读到。网易云不走 SMTC，看到「网易云还没在播放」时直接播放即可。
+
+**网易云没有反应 / 没有歌词**  
+先看调试面板的 `health.netease` 与 `state.neteaseReason`：
+
+- `elog-missing`：没有找到 `%LOCALAPPDATA%\NetEase\CloudMusic\cloudmusic.elog`。确认是网易云 3.0+，启动并播放过一首歌；日志会在播放时创建。
+- `no-session`：日志存在但还没有播放事件，播放一首歌即可。
+- `lyrics.error`：看是不是冷门歌/纯音乐/版权受限；切歌后会重新取词。
+
+**网易云进度准吗 / 拖拽进度条会跳吗**  
+会。插件解析的是 `cloudmusic.elog` 里的 `setPlayingPosition` 事件，拖拽 seek 后会立即更新位置，不是按启动时间硬估。
+
+**QQ 音乐和网易云同时开着，投谁**  
+默认 `player: "auto"` 选正在播放的那个；两个都在播时选最近有更新的。也可以强制：
+
+```json
+{ "player": "netease" }
+```
+
+**网易云需要 BetterNCM / InfLink 吗**  
+不需要。本插件直接读本地 elog。只有网易云 2.x / 日志被关闭等极少数情况才需要 InfLink 把状态发布到 SMTC（本插件的 SMTC helper 也能识别 `cloudmusic` / `netease` 会话）。
 
 **`available` 是 true，但一直没有歌词**  
 看调试面板的 `lyrics.status` / `lyrics.error`。冷门歌、纯音乐、电台可能取不到词；插件会回落到 lrclib，仍失败就显示 `error`。点「重新取词」或 `POST /refresh`。
@@ -268,10 +316,11 @@ web 模式默认用自绘气泡，不会出现这个问题。
 
 ## 隐私与安全
 
-- **不需要任何 API Key**：不碰 DeepSeek / OpenAI / QQ 音乐账号凭据
-- **不读 Cookie**：QQ 音乐歌词走公开 Web 接口，只带歌名 + 歌手
-- **不上传听歌记录**：SMTC 元数据只在本机内存里流转
-- **唯一出站请求**：QQ 音乐公开曲库（搜索 / 歌词），失败时可选回落 lrclib
+- **不需要任何 API Key**：不碰 DeepSeek / OpenAI / QQ 音乐 / 网易云账号凭据
+- **不读 Cookie**：歌词走公开 Web 接口，只带歌名 + 歌手（网易云优先用 songId）
+- **网易云日志只读**：只解析歌名 / 歌手 / 专辑 / songId / 进度；日志里的 `musicurl`（带签名）不进入状态、不落盘、不上传
+- **不上传听歌记录**：SMTC / elog 元数据只在本机内存里流转
+- **出站请求**：QQ 音乐公开曲库（搜索 / 歌词）、网易云公开曲库（songId 歌词 / 搜索），失败时可选回落 lrclib
 - **helper 源码随包**：`lib/smtc-helper.cs` 可自行编译核对
 - **补丁有备份**：`events.js.bak-qqmusic`，随时可还原
 
@@ -283,6 +332,8 @@ web 模式默认用自绘气泡，不会出现这个问题。
 
 - Windows 10 1809+ / 11；不支持 macOS / Linux
 - QQ 音乐 PC 客户端版本过低时不上报进度；搜索 / 歌词接口不是腾讯官方开放 API，可能随客户端改版失效
+- 网易云 3.0+ 的 `cloudmusic.elog` 格式是社区逆向出来的；客户端大版本更新可能改变字段或编码，届时需要跟进
+- 网易云 2.x 不写这份日志，只能走 InfLink → SMTC 的路线
 - 纯音乐、电台、试听片段可能没有可用歌词
 - 桌面 quiet 补丁修改的是 dsh-pet 运行时文件，dsh-pet 升级后需重跑
 - 歌词版权归原权利人所有；本项目只做本机展示，不提供下载 / 分发
@@ -313,8 +364,9 @@ dsh-pet-qqmusic/
 ├─ package.json
 ├─ cordis.patch.yml
 ├─ lib/
-│  ├─ index.js          # 宿主：路由 / 状态机 / 配置 / 缓存
-│  ├─ lyrics.js         # 纯函数：LRC 解析 / 版本打分 / QQ 音乐搜索与取词
+│  ├─ index.js          # 宿主：双播放器选择 / 路由 / 状态机 / 配置 / 缓存
+│  ├─ lyrics.js         # LRC 解析 / 版本打分 / QQ + 网易云搜索与取词
+│  ├─ netease-elog.js   # 网易云 cloudmusic.elog 解码 + 播放状态机
 │  ├─ smtc.js           # Node 侧：看护 helper、解析 JSON、进度外推
 │  ├─ smtc-helper.cs    # C# 源码
 │  └─ smtc-helper.exe   # 已编译的 x64 helper
@@ -331,8 +383,9 @@ dsh-pet-qqmusic/
 - [dsh-pet](https://github.com/PC2005-cloud/dsh-pet)：桌宠本体、公开的 `/broadcast` 投喂端点与气泡样式
 - [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)：插件与 Web UI 运行环境
 - [Lyricify 文档](https://docs.lyricify.app/)：QQ 音乐 SMTC 开启路径的参考
+- [netease-cloudmusic-detector](https://github.com/YouRanCoder/netease-cloudmusic-detector-py)：`cloudmusic.elog` 解码表与状态机（MIT），本项目移植为 Node 版
 
-QQ 音乐、腾讯及其素材归腾讯音乐娱乐集团所有；dsh-pet 的角色素材归其作者所有。本项目与二者均无官方关联，不包含它们的代码或美术资源。
+QQ 音乐、腾讯及其素材归腾讯音乐娱乐集团所有；网易云音乐、网易及其素材归网易公司所有；dsh-pet 的角色素材归其作者所有。本项目与三者均无官方关联，不包含它们的代码或美术资源。第三方许可摘要见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ---
 

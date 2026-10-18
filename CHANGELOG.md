@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.3.0
+
+- 新增网易云音乐支持：直接读 `cloudmusic.elog`，不需要 BetterNCM / InfLink，支持播放/暂停与 seek
+- 新增 `player` 配置（`auto` / `qq` / `netease`），自动选择正在播放的播放器
+- 网易云优先用 songId 取词（本地缓存 / 公开 API），避免同名版本错配
+- SMTC helper 可识别 `cloudmusic` / `netease` 会话（InfLink 等方案的回退路径）
+- 新增 `lib/netease-elog.js`、`THIRD_PARTY_NOTICES.md` 与对应单测
+
 ## 1.2.0
 
 - 歌词更新不再切宠物动画：web 模式使用自绘歌词气泡；桌面悬浮模式提供 `scripts/patch-dsh-pet-quiet-lyrics.mjs`

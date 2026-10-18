@@ -35,6 +35,14 @@ function makeService(overrides = {}) {
     }),
     ...overrides.watcher,
   };
+  const netease = {
+    path: '',
+    lastError: '',
+    start() {},
+    stop() {},
+    getState: () => ({ available: false, session: null, reason: 'no-session' }),
+    ...overrides.netease,
+  };
   const resolver = async () => ({
     ok: true,
     source: 'qq',
@@ -48,11 +56,12 @@ function makeService(overrides = {}) {
     {
       home,
       watcher,
+      netease,
       resolver: overrides.resolver ?? resolver,
       config: { enabled: true, offsetMs: 0, hints: true, ...(overrides.config ?? {}) },
     },
   );
-  return { service, home, watcher };
+  return { service, home, watcher, netease };
 }
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
@@ -133,5 +142,53 @@ test('关掉 enabled 后 state 仍可读，但浏览器侧不会投喂', async (
   service._tick();
   await settle();
   assert.equal(service.state().enabled, false);
+  rmSync(home, { recursive: true, force: true });
+});
+
+test('网易云 elog 会话：player / positionSource / songId 与按 id 取词', async () => {
+  let resolverArgs = null;
+  const { service, home } = makeService({
+    watcher: { getState: () => ({ available: false, session: null, reason: 'no-session' }) },
+    netease: {
+      getState: () => ({
+        available: true,
+        session: {
+          source: 'cloudmusic.exe',
+          player: 'netease',
+          title: '起风了',
+          artist: '买辣椒也用券',
+          album: '起风了',
+          status: 'Playing',
+          playing: true,
+          positionMs: 30000,
+          durationMs: 325868,
+          lastUpdatedMs: Date.now(),
+          songId: '1330348068',
+          positionSource: 'elog',
+        },
+      }),
+    },
+    resolver: async (track, opts) => {
+      resolverArgs = { track, opts };
+      return {
+        ok: true,
+        source: 'netease',
+        matched: { songId: '1330348068', title: '起风了', artist: '买辣椒也用券', album: '起风了', durationMs: 325868, score: 1 },
+        lrc: '',
+        lines: LINES,
+        instrumental: false,
+      };
+    },
+  });
+  service._tick();
+  await settle();
+  const s = service.state();
+  assert.equal(s.player, 'netease');
+  assert.equal(s.positionSource, 'elog');
+  assert.equal(s.songId, '1330348068');
+  assert.equal(s.track.title, '起风了');
+  assert.equal(resolverArgs.opts.player, 'netease');
+  assert.equal(resolverArgs.opts.songId, '1330348068');
+  assert.equal(s.line.text, '第三行');
   rmSync(home, { recursive: true, force: true });
 });
