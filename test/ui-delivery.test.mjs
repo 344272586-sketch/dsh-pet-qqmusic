@@ -19,7 +19,7 @@ function makeState(lineIndex, text, extra = {}) {
     hint: null,
     config: {
       enabled: true,
-      petId: '',
+      petId: 'main',
       offsetMs: 0,
       keepAliveSec: 0,
       showTrackInfo: true,
@@ -46,8 +46,13 @@ test('client：行变化才投喂，keepAlive 到点补发，提示节流', asyn
       let body = '';
       req.on('data', (c) => (body += c));
       req.on('end', () => {
-        const raw = JSON.parse(body || '{}').text || '';
-        calls.push({ url: req.url, body: { text: raw.replace(/\u200B/g, '') }, raw });
+        const parsed = JSON.parse(body || '{}');
+        const raw = parsed.text || '';
+        calls.push({
+          url: req.url,
+          body: { text: raw.replace(/\u200B/g, ''), anim: parsed.anim, duration: parsed.duration },
+          raw,
+        });
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ ok: true }));
       });
@@ -88,6 +93,10 @@ test('client：行变化才投喂，keepAlive 到点补发，提示节流', asyn
   await new Promise((r) => setTimeout(r, 250));
   assert.equal(calls.length, 1);
   assert.equal(calls[0].body.text, '♪ 第一行');
+  assert.match(calls[0].url, /pet=main/);
+  assert.match(calls[0].url, /surface=any/);
+  assert.equal(calls[0].body.anim, false);
+  assert.ok(calls[0].body.duration >= 12000);
   assert.equal(calls[0].raw.charCodeAt(0), 0x200b, 'broadcast 必须带 U+200B 安静歌词标记');
 
   // 同一行不重复

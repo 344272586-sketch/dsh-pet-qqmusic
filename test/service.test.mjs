@@ -438,8 +438,8 @@ test('neteaseOffsetMs 只覆盖网易云，QQ 仍用 offsetMs', async () => {
 test('client 失联时宿主兜底写 dsh-pet', () => {
   const calls = [];
   const { service, home } = makeService({
-    hostDeliver: (url, text) => {
-      calls.push({ url, text });
+    hostDeliver: (url, payload) => {
+      calls.push({ url, payload });
       return Promise.resolve({ ok: true });
     },
   });
@@ -458,7 +458,11 @@ test('client 失联时宿主兜底写 dsh-pet', () => {
   service._maybeHostDeliver();
   assert.equal(calls.length, 1);
   assert.match(calls[0].url, /\/dsh-pet-7340\/broadcast/);
-  assert.ok(calls[0].text.startsWith('\u200B♪ hello'));
+  assert.match(calls[0].url, /pet=main/);
+  assert.match(calls[0].url, /surface=any/);
+  assert.ok(calls[0].payload.text.startsWith('\u200B♪ hello'));
+  assert.equal(calls[0].payload.anim, false);
+  assert.ok(calls[0].payload.duration >= 12000);
 
   service._maybeHostDeliver(); // 同一行、未到 keepAlive，不重复
   assert.equal(calls.length, 1);

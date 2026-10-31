@@ -1,16 +1,15 @@
 #!/usr/bin/env node
 /**
- * dsh-pet 桌面 helper 的「安静歌词」补丁。
+ * dsh-pet 桌面 helper 的「安静歌词」补丁（仅 dsh-pet < 0.3.8 需要）。
  *
- * 背景：
- *   dsh-pet 的 /broadcast 在桌面 helper 里走 PetSprite.showWhisper()——每次投喂都会
- *   随机挑一个「碎碎念」动画并 playOnce，所以歌词每换一行宠物模型就换一次动作/重播。
- *   web 模式可以用本插件自绘气泡绕开；但 display=desktop 的悬浮小窗没有 DOM 可叠，
- *   只能给 helper 加一个分支：带 U+200B 前缀的投喂只更新气泡，不切动画、不 playOnce。
+ * dsh-pet 0.3.8 起 /broadcast 原生支持 `anim:false` 与 `duration`，插件直接传这两个字段，
+ * 不再需要改运行时文件。这个脚本保留给旧版本：给 helper 加一个分支，带 U+200B 前缀的
+ * 投喂只更新气泡，不切动画、不 playOnce。
  *
  * 这是对 dsh-pet **运行时文件**的补丁，不修改它的源码包：
  *   - 幂等：已打补丁会直接跳过；
- *   - 只认精确的函数签名，dsh-pet 改版后签名不同就报错退出，不会乱写；
+ *   - 检测到 0.3.8+ 会直接说明“不需要补丁”并退出；
+ *   - 只认旧版精确函数签名，签名不同就报错退出，不会乱写；
  *   - dsh-pet 升级会覆盖该文件，升级后重跑本脚本即可。
  *
  * 用法：
@@ -79,6 +78,10 @@ if (!file) {
 }
 
 let src = readFileSync(file, 'utf8');
+if (src.includes('function showWhisper(text, image, url, duration, anim)') || src.includes('anim !== false')) {
+  console.log('dsh-pet 0.3.8+ 原生支持 anim:false / duration，不需要补丁：' + file);
+  process.exit(0);
+}
 if (src.includes(MARKER)) {
   console.log('已打过补丁，跳过：' + file);
   if (process.argv.includes('--restart')) restartHelper();

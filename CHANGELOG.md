@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.4.0
+
+- 适配 dsh-pet 0.3.8+：`/broadcast` 现在必填 `pet` 与 `surface`，插件默认 `pet=main&surface=any`；不升级会收到 `pet-required` / `surface 必填`
+- 适配 dsh-pet 0.3.8+ 原生 `anim:false` / `duration`：歌词投喂不再依赖 U+200B quiet 补丁
+- 浏览器投喂和宿主兜底都传 `anim:false` + 12 秒 `duration`，桌面宠物只更新气泡、不切动画
+- 旧版 dsh-pet（< 0.3.8）仍保留 quiet 补丁；补丁脚本检测到 0.3.8+ 会提示不需要并退出
+- README 更新安装、排障和兼容说明；41 项单测
+
 ## 1.3.9
 
 - 新增 `hostFallback`：DSH 前台被最小化/后台节流、浏览器 client 超过 2.5 秒没轮询时，宿主直接写 dsh-pet，桌面歌词不再依赖浏览器

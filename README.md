@@ -50,8 +50,8 @@ QQ 音乐   晴天 — 周杰伦        00:29
 - **跳过制作名单**：自动去掉开头的「词：/曲：/编曲：/吉他：」和「歌名 - 歌手」标题行
 - **纯音乐识别**：返回「此歌曲为没有填词的纯音乐」时显示「纯音乐，请欣赏」，不乱唱
 - **翻译可选**：有翻译时，可显示原文 + 译文两行
-- **不刷新宠物模型**：web 桌宠用自绘歌词气泡；桌面悬浮模式用一键 quiet 补丁，歌词只更新气泡，不切动画、不重播
-- **多桌宠**：`petId` 留空 = 当前桌宠，也可以固定投给某一只
+- **不刷新宠物模型**：web 桌宠用自绘歌词气泡；桌面侧向 dsh-pet 0.3.8+ 传 `anim:false` + `duration`，旧版才用 quiet 补丁
+- **多桌宠**：`petId` 默认 `main`；多宠物时填对应 id（dsh-pet 0.3.8+ 的 `/broadcast` 必填 `?pet=`）
 - **零密钥**：不需要 DeepSeek / OpenAI / QQ 音乐 / 网易云的任何 API Key，也不读 Cookie
 
 ---
@@ -128,7 +128,7 @@ DSH 桌面版的 profile 由 Electron 应用独占管理，`dsh plugin --profile
    & $node $pnpm install --dir $profile --config.confirmModulesPurge=false
    ```
 
-4. **桌面悬浮模式额外打一次 quiet 补丁**（`display: "desktop"` 时必需；web 模式可跳过）：
+4. **桌面悬浮模式**：dsh-pet 0.3.8+ 原生支持 `anim:false`，**不需要补丁**；旧版（< 0.3.8）才需要打一次 quiet 补丁：
 
    ```powershell
    cd <PLUGIN_DIR>
@@ -157,7 +157,7 @@ dsh plugin --profile web add link:<PLUGIN_DIR>
 | 键 | 默认 | 说明 |
 |---|---|---|
 | `enabled` | `true` | 总开关；关掉后浏览器侧不再投喂 |
-| `petId` | `""` | 目标桌宠 id；空 = dsh-pet 当前桌宠（`/pet` 选中的那只，未选则第一只） |
+| `petId` | `"main"` | 目标桌宠 id；dsh-pet 0.3.8+ 的 `/broadcast` 必填 `?pet=`，默认 `main`。多宠物时填对应 id；空值会回落 `main` |
 | `player` | `"auto"` | `auto`：谁在播放就用谁；`qq` / `netease` 强制指定播放器（两个客户端同时开时有用） |
 | `neteasePath` | `""` | 自定义 `cloudmusic.elog` 路径；空 = `%USERPROFILE%\AppData\Local\NetEase\CloudMusic\cloudmusic.elog`（改完需重启插件） |
 | `displayMode` | `"auto"` | `auto`：web 桌宠用自绘气泡、桌面悬浮回落到投喂；`overlay`：只用自绘气泡（不触发动画，桌面模式不显示）；`bubble`：始终走 `dsh-pet /broadcast` |
@@ -213,19 +213,32 @@ QQ 音乐 PC ──SMTC──> smtc-helper.cs（C# / WinRT，首次启动编译�
               ┌───────────┴────────────┐
               ▼                        ▼
    web 桌宠：自绘歌词气泡      desktop：POST /dsh-pet-7340/broadcast
-   （复用 dsh-pet bubble CSS，  （文本前带 U+200B；打过 quiet 补丁的
-     只改文本，不碰动画）         helper 只更新气泡、不切动画）
+   （复用 dsh-pet bubble CSS，  （0.3.8+ 传 anim:false + duration，
+     只改文本，不碰动画）         原生只更新气泡；旧版靠 U+200B 补丁）
 ```
 
-### 为什么桌面模式要打补丁
+### 桌面模式还会不会刷新动画
 
-dsh-pet 的 `/broadcast` 在桌面 helper 里最终走 `PetSprite.showWhisper()`：它会随机挑一个碎碎念动画并 `playOnce()`。如果每句歌词都直接投喂，宠物模型就会每句换一次动作，看起来像在刷新。
+dsh-pet **0.3.8+** 的 `/broadcast` 原生支持两个参数：
 
-补丁只给 `runtime/electron-helper/events.js` 的 `showWhisper` 加一个分支：带 `U+200B` 标记的投喂只更新气泡，不切动画、不 `playOnce`、不打断移动。普通碎碎念仍走原逻辑。
+```json
+{ "text": "♪ 歌词", "anim": false, "duration": 12000 }
+```
 
-- **web 桌宠**：不需要补丁，客户端直接画歌词气泡（复用 dsh-pet 的 `.dsh-pet-bubble` 样式）
-- **桌面悬浮小窗**：需要补丁，因为独立 Electron 窗口没有页面 DOM 可叠
-- dsh-pet 升级覆盖 `events.js` 后，重跑一次 `scripts/patch-dsh-pet-quiet-lyrics.mjs --restart`
+- `anim:false`：只更新气泡，不随机播碎碎念、不 `playOnce`、不打断移动
+- `duration`：气泡停留时间；本插件传 12 秒，配合 `keepAliveSec` 补发
+
+所以 **0.3.8+ 不需要再打补丁**。旧版 dsh-pet（< 0.3.8）才需要：
+
+```powershell
+node scripts/patch-dsh-pet-quiet-lyrics.mjs --restart
+```
+
+脚本检测到 0.3.8+ 会直接提示“不需要补丁”并退出。
+
+- **web 桌宠**：自绘歌词气泡，不依赖 dsh-pet 动画
+- **桌面悬浮小窗**：0.3.8+ 用 `anim:false`；旧版才用 U+200B 补丁
+- dsh-pet 升级覆盖 `events.js` 后，旧版补丁需要重跑；0.3.8+ 无需处理
 
 ---
 
@@ -309,7 +322,7 @@ Chromium 会节流后台页面的 `setInterval`，浏览器侧不再轮询，dsh
 调 `offsetMs`：快就调小（负），慢就调大（正）。默认 600ms 已经补偿了 dsh-pet 的 1 秒轮询。
 
 **每次新歌词出来，宠物模型刷新 / 换动作**  
-说明还在走原生 `/broadcast` 且没打 quiet 补丁。桌面悬浮模式跑一次：
+先确认 dsh-pet 版本：**0.3.8+** 插件会传 `anim:false`，正常不应再换动作；如果仍换，检查是不是还在跑旧版 dsh-pet，或 `/broadcast` 被别的中间层改写了。旧版（< 0.3.8）跑一次：
 
 ```powershell
 node scripts/patch-dsh-pet-quiet-lyrics.mjs --restart
@@ -318,7 +331,7 @@ node scripts/patch-dsh-pet-quiet-lyrics.mjs --restart
 web 模式默认用自绘气泡，不会出现这个问题。
 
 **dsh-pet 更新后又不安静了**  
-更新会覆盖 `events.js`，重跑上面的补丁脚本即可。想彻底回到原生行为，把同目录的 `events.js.bak-qqmusic` 还原。
+0.3.8+ 原生支持 `anim:false`，不需要补丁；旧版更新会覆盖 `events.js`，重跑上面的脚本即可。想彻底回到旧版原生行为，把同目录的 `events.js.bak-qqmusic` 还原。
 
 **杀软把编译出的 SMTC helper 删了 / 拦了**  
 `/health` 会显示 helper 缺失或启动失败。删掉 `$DSH_HOME/dsh-pet-qqmusic/bin/smtc-helper.exe` 后重启插件，会从 `lib/smtc-helper.cs` 自动重新编译；也可以把该目录加白名单。helper 只读系统媒体会话，不发网络请求。
@@ -327,7 +340,7 @@ web 模式默认用自绘气泡，不会出现这个问题。
 能。浏览器侧把歌词写进 dsh-pet 的 `pets.<id>.say`，桌面宠物与浏览器宠物读同一份状态。前提是 DSH 页面还开着。
 
 **多只桌宠投给谁**  
-`petId` 填 dsh-pet 的实例 id；留空 = `/pet` 选中的那只，未选则列表第一只。web 自绘气泡目前取第一只 `.dsh-pet-stage`，多宠物建议用 `bubble` 模式配合 `petId`。
+`petId` 填 dsh-pet 的实例 id，默认 `main`。dsh-pet 0.3.8+ 不再默认落到「当前桌宠」，`/broadcast` 必须显式 `?pet=`；多宠物建议用 `bubble` 模式配合 `petId`。web 自绘气泡目前取第一只 `.dsh-pet-stage`。
 
 ---
 
@@ -352,7 +365,7 @@ web 模式默认用自绘气泡，不会出现这个问题。
 - 网易云 3.0+ 的 `cloudmusic.elog` 格式是社区逆向出来的；客户端大版本更新可能改变字段或编码，届时需要跟进
 - 网易云 2.x 不写这份日志，只能走 InfLink → SMTC 的路线
 - 纯音乐、电台、试听片段可能没有可用歌词
-- 桌面 quiet 补丁修改的是 dsh-pet 运行时文件，dsh-pet 升级后需重跑
+- dsh-pet 0.3.8+ 用原生 `anim:false` / `duration`；旧版（< 0.3.8）的 quiet 补丁修改运行时文件，升级后需重跑
 - 歌词版权归原权利人所有；本项目只做本机展示，不提供下载 / 分发
 
 ---
